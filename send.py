@@ -1,16 +1,18 @@
 import RPi.GPIO as GPIO
-
-class Sender():
-    
-    
 if __name__ == '__main__':
-    import sys
+    import sys, time
+
     GPIO.setwarnings(False)
-   
+    senderPin = 11
+
     if len(sys.argv) < 3:
-            print "usage:sudo python %s int_device int_state (e.g. '%s 2 1' switches device 2 on)" % \
-                    (sys.argv[0], sys.argv[0])  
-            sys.exit(1)
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(senderPin, GPIO.OUT)
+        for i in [1,0,1,0,1,0,1, 0]:
+            print i
+            GPIO.output(senderPin, i)
+            time.sleep(300 / 1000000.)
+        sys.exit(1)
    
    
     # Change the key[] variable below according to the dipswitches on your Elro receivers.
