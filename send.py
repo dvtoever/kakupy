@@ -1,36 +1,50 @@
 from __future__ import division
-import RPi.GPIO as GPIO
+from __future__ import print_function
+
+def printf(str, *args):
+  print(str % args, end='')
+
+import wiringpi
 
 class Unit: 
-  def __init__(self, unitCode, id):
+  def __init__(self, unitCode, houseId):
     self.unitCode = unitCode
-    self.id = id
+    self.houseId = houseId
 
 class Sender:
-  shortSleep = 226  / 1000000
-  longSleep  = 1600 / 1000000
-  startSleep = 3300 / 1000000
 
-  def __init__(self, outputPin):
+  def __init__(self, outputPin, speed):
+    self.io = wiringpi.GPIO(wiringpi.GPIO.WPI_MODE_PINS)
+    self.io.pinMode(1, self.io.OUTPUT)
     self.outputPin = outputPin
+    self.shortSleep = (2*speed)  / 1000000.0
+    self.longSleep  = (12*speed) / 1000000.0
+    self.startSleep = (25*speed) / 1000000.0
+    self.endSleep = (100*speed)  / 1000000.0
+
 
   def __sendStart(self):
-    GPIO.output(self.outputPin, True)
+    self.io.digitalWrite(self.outputPin,self.io.HIGH)
     time.sleep(self.shortSleep)
-    GPIO.output(self.outputPin, False)
+    #printf('.')
+    self.io.digitalWrite(self.outputPin,self.io.LOW)
     time.sleep(self.startSleep)
 
   def __sendPulse0(self):
-    GPIO.output(self.outputPin, True)
+    self.io.digitalWrite(self.outputPin,self.io.HIGH)
     time.sleep(self.shortSleep)
-    GPIO.output(self.outputPin, False)    
+    #printf('.')
+    self.io.digitalWrite(self.outputPin,self.io.LOW)    
     time.sleep(self.shortSleep)
+    #printf('.')
 
   def __sendPulse1(self):
-    GPIO.output(self.outputPin, True)
+    self.io.digitalWrite(self.outputPin,self.io.HIGH)
     time.sleep(self.shortSleep)
-    GPIO.output(self.outputPin, False)
+    #printf('.')
+    self.io.digitalWrite(self.outputPin,self.io.LOW)
     time.sleep(self.longSleep)
+    #printf('-')
 
   def __sendHigh(self):
     self.__sendPulse0()
@@ -40,7 +54,7 @@ class Sender:
     self.__sendPulse1()
     self.__sendPulse0()
 
-  def __sendId(self, id):
+  def __sendHouseId(self, id):
     binaryIdStr = "{0:b}".format(id)
     idLength = len(binaryIdStr)
 
@@ -54,26 +68,47 @@ class Sender:
       else:
         self.__sendHigh()
  
+  def __sendUnitCode(self, unitCode):
+    binaryUnitCodeStr = "{0:b}".format(unitCode)
+    unitCodeLength = len(binaryUnitCodeStr)
 
+    for i in range(4 - unitCodeLength):
+      self.__sendHigh()
+
+    for j in range(unitCodeLength):
+      if binaryUnitCodeStr[j] == '1':
+        self.__sendLow()
+      else:
+        self.__sendHigh()
+
+  def __sendEnd(self):
+    self.io.digitalWrite(self.outputPin,self.io.HIGH)
+    time.sleep(self.shortSleep)
+    #printf('.')
+    self.io.digitalWrite(self.outputPin,self.io.LOW)
+    time.sleep(self.endSleep)
+ 
   def turnOff(self, unit):
-    self.__sendStart()
-    self.__sendId(unit.id)
-    self.__sendHigh(); 
-    
-
+    for i in range(10):
+      self.__sendStart()
+      #printf('|')
+      self.__sendHouseId(unit.houseId)
+      #printf('|')
+      self.__sendHigh(); 
+      self.__sendHigh(); 
+      #printf('|')
+      self.__sendUnitCode(unit.unitCode)
+      #printf('|')
+      self.__sendEnd()
+      #printf('|')
 
 if __name__ == '__main__':
     import sys, time
 
-    senderPin = 11
+    senderPin = 0
     
-    #Setup WiringPi
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(senderPin, GPIO.OUT)
-
     lamp = Unit(2, 8983502)
-    sender = Sender(senderPin)
+    sender = Sender(senderPin, float(sys.argv[1]))
 
     sender.turnOff(lamp)
 
